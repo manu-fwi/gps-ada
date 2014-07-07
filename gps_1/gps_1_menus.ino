@@ -35,8 +35,13 @@ char oui_non() // -1 : non; 0 : time out; 1 : oui
     l = last_button_change;
     interrupts();
     delay(30);
-    if (b && (millis()>l+100))
+    if (b && (millis()>l+100)) {
+      #ifdef DEBUG
+      Serial.print("oui-non=");
+      Serial.println((unsigned int)choice);
+      #endif
       return choice;
+    }
     noInterrupts();
     l = last_menu_change;
     b = menu_change;
@@ -110,7 +115,7 @@ void menu_start_path()
     return;
   }
   char name[12];
-  strcpy_P(name, (char*) pgm_read_word(wp_file_name));
+  strcpy_P(name, (PGM_P)wp_file_name);
   wp_file_n = new_filename(name);
   if (createWPFile(name,wp_file)) {
     next_WP = 0;
@@ -142,14 +147,14 @@ void menu_end_path()
   if (oui == 1) {
     err_msg(msg_transfering_SD,false);
     char name[12];
-    strcpy_P(name, (char*) pgm_read_word(trace_file_name));
-    
+    strcpy_P(name, (PGM_P)trace_file_name);
+    err_msg(name);
     save_trace(name);
     GPS.sendCommand("$PMTK185,1*23");
     GPS.waitForSentence("$PMTK001,185");    
     err_msg(msg_erasing_mem, false);
     GPS.sendCommand("$PMTK184,1*22");
-    GPS.waitForSentence("$PMTK001,184");
+    GPS.waitForSentence("$PMTK001,184,3");
     // FIXME: Check result
     Serial1.flush();
     LOCUS_started = false;

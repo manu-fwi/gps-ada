@@ -190,12 +190,18 @@ void setup() {
   // Print a message to the LCD.
   lcd.print("Start up...");
   
+  pinMode(A1,OUTPUT);
+  if (!SD.begin(A1)) {
+    lcd.setCursor(0,1);
+    lcd.print("SD not working!!");
+  }
+  
   // GPS Setup
   GPS.begin(9600);
   // Make sure GPS is ready and set up.
   gps_init();
   
-  coord_Lat[9]='\0';
+    coord_Lat[9]='\0';
   coord_Long[0]='\0'; // marks that there is no valid coord in there
   coord_Long[10]='\0';
 }
@@ -230,7 +236,7 @@ int get_LOCUS_mem()
   static int mem = -1;
   static unsigned long last_time = 0;
   
-  if ((mem<-1) || (millis()>last_time + 5000)) {
+  if ((mem==-1) || (millis()>last_time + 5000)) {
     if (GPS.LOCUS_ReadStatus()) mem = GPS.LOCUS_percent;
     else mem = -1;
     last_time = millis();

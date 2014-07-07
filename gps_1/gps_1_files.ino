@@ -15,13 +15,17 @@ unsigned int wp_file_n; // number
 uint16_t new_filename(char * name)
 {
   char * p = strchr(name,'0');
-  uint16_t i;
+  uint16_t j;
  
-  for (i = 0; i < 1000; i++) {
+  for (j = 0; j < 1000; j++) {
+    uint16_t i = j;
     p[2] = '0' + i % 10;
     i/=10;
     p[1] = '0' + i % 10;
     p[0] = '0' + i /10;
+    #ifdef DEBUG
+    Serial.println(name);
+    #endif
     // create if does not exist, do not open existing, write, sync after write
     if (! SD.exists(name)) {
       break;
