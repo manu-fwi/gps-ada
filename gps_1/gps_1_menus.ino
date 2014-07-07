@@ -43,7 +43,7 @@ char oui_non() // -1 : non; 0 : time out; 1 : oui
     if (b && (millis()>l+100)) {
       #ifdef DEBUG
       Serial.print("oui-non=");
-      Serial.println((unsigned int)choice);
+      Serial.println((int)choice);
       #endif
       return choice;
     }
@@ -150,10 +150,15 @@ void menu_end_path()
   wp_file.close();
   char oui = oui_non();
   if (oui == 1) {
-    err_msg(msg_transfering_SD,false);
+    err_msg(msg_transfering_SD);
     char name[12];
     strcpy_P(name, (PGM_P)trace_file_name);
-    err_msg(name);
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print(name);
+    #ifdef DEBUG
+    Serial.println(name);
+    #endif
     save_trace(name);
     GPS.sendCommand("$PMTK185,1*23");
     GPS.waitForSentence("$PMTK001,185");    

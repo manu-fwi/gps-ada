@@ -100,17 +100,27 @@ void save_trace(char * name)
   File f = SD.open(name, FILE_WRITE);
   if (f) {
     GPS.sendCommand("$PMTK622,1*29");
-    GPS.waitForSentence("$PMTK001,622");
     do {
-      do GPS.read(); while (!GPS.newNMEAreceived());
-      i = GPS.lastNMEA()[9]-'0';
-      if (i==1)
+      do {
+        while (!GPS.newNMEAreceived()) GPS.read();
+        #ifdef DEBUG
+        Serial.println(GPS.lastNMEA());
+        #endif
+      } while (!strstr(GPS.lastNMEA(),"$PMTKLOX"));
+      #ifdef DEBUG
+      Serial.println(GPS.lastNMEA());
+      #endif
+      char * p = strchr(GPS.lastNMEA(),',')+1;
+      i = *p - '0';
+
+      if (i==1) {
         f.println(GPS.lastNMEA());
-      if (++n%5==0) {
-        lcd.setCursor(12,1);
-        lcd.print(n);
+        if (++n%5==0) {
+          lcd.setCursor(12,1);
+          lcd.print(n/n_tot);
+          lcd.print('%');
+        } 
       } else if (i==0) {
-        char * p = strchr(GPS.lastNMEA(),',')+1;
         p = strchr(p,',')+1;
         n_tot = atoi(p);
       }
