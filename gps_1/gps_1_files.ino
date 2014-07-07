@@ -31,7 +31,7 @@ uint16_t new_filename(char * name)
       break;
     }
   }
-  return i;
+  return j;
 }
 
 // Name must be a 12 chars buffer

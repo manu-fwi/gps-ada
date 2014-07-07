@@ -27,6 +27,11 @@ char oui_non() // -1 : non; 0 : time out; 1 : oui
   unsigned long beg = millis(),l;
   byte b;
   
+  noInterrupts();
+  last_menu_change = millis();
+  menu_change = 0;
+  interrupts();
+  
   wait_button_released();
   
   do {
@@ -50,14 +55,14 @@ char oui_non() // -1 : non; 0 : time out; 1 : oui
       if (b>0) {
         choice = -1;
         lcd.setCursor(0,1);
-        lcd.print(' ');
+        lcd.print(" ");
         coord = 7;
       }
       else if (b<0) {
         choice = 1;
         coord = 0;
         lcd.setCursor(7,1);
-        lcd.print(' ');
+        lcd.print(" ");
       }
       noInterrupts();
       menu_change = 0;
