@@ -40,22 +40,12 @@ char oui_non() // -1 : non; 0 : time out; 1 : oui
     l = last_button_change;
     interrupts();
     if (b && (millis()>l+100)) {
-      #ifdef DEBUG
-      Serial.print("oui-non=");
-      Serial.println((int)choice);
-      #endif
       return choice;
     }
     noInterrupts();
     l = last_menu_change;
     b = menu_change;
     interrupts();
-    #ifdef DEBUG
-    Serial.print("b=");
-    Serial.print((int)b);
-    Serial.print("  l=");
-    Serial.println(l);
-    #endif
     if ((millis()>l+100)&&(b!=0)) {
       if (b>0) {
         choice = -1;
@@ -72,8 +62,6 @@ char oui_non() // -1 : non; 0 : time out; 1 : oui
       noInterrupts();
       menu_change = 0;
       interrupts();
-      Serial.print(" choice = ");
-      Serial.println((int)choice);  
       lcd.setCursor(coord,1);
       lcd.print('>');
     }
@@ -91,7 +79,7 @@ void err_msg(char * msg, boolean use_delay = true)
    strcpy_P(buffer, (PGM_P)msg);
    lcd.setCursor(0,0);
    lcd.print(buffer);
-   if (use_delay) delay(2000);
+   if (use_delay) delay(DELAY_ERR_MSG);
 }
 
 void menu_add_wp()

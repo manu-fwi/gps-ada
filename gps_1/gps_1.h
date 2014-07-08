@@ -1,3 +1,4 @@
+
    // DEFINES
 
 
@@ -18,7 +19,10 @@
 
 #define MENU_DELAY 2000
 
+#define DELAY_ERR_MSG 2000
+
 // Timeout when in menu: 2 mn
+
 #define SLEEP_MENU_TOUT 120
 
 // Timeout when displaying coords: 1mn
