@@ -201,7 +201,7 @@ void setup() {
   // Make sure GPS is ready and set up.
   gps_init();
   
-    coord_Lat[9]='\0';
+  coord_Lat[9]='\0';
   coord_Long[0]='\0'; // marks that there is no valid coord in there
   coord_Long[10]='\0';
 }
@@ -286,14 +286,14 @@ void aff_coords()
     if (LOCUS_started) lcd.print(" *");
     else lcd.print("  ");
     int mem = get_LOCUS_mem();
-    if (mem>=0) lcd.print(get_LOCUS_mem());
+    if (mem>=0) lcd.print(mem);
     else lcd.print("---");
     lcd.print("%");
     lcd.setCursor(0,1);
     lcd.print(coord_Long);
     #ifdef DEBUG
     Serial.print(must_displ_coords);
-    Serial.print("coords=");
+    Serial.print(" coords=");
     Serial.print(coord_Lat);
     Serial.print(" * ");
     Serial.println(coord_Long);

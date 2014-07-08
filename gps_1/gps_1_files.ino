@@ -23,9 +23,6 @@ uint16_t new_filename(char * name)
     i/=10;
     p[1] = '0' + i % 10;
     p[0] = '0' + i /10;
-    #ifdef DEBUG
-    Serial.println(name);
-    #endif
     // create if does not exist, do not open existing, write, sync after write
     if (! SD.exists(name)) {
       break;
@@ -44,10 +41,10 @@ void build_filename(char * name, unsigned int num)
 {
   char * p = strchr(name,'0');
 
-  p[2] = num % 10;
+  p[2] = num % 10+'0';
   num /= 10;
-  p[1] = num % 10;
-  p[0] = num /10;
+  p[1] = num % 10+'0';
+  p[0] = num /10+'0';
 }
 
 void print_date(Print& s)
@@ -117,7 +114,7 @@ void save_trace(char * name)
         f.println(GPS.lastNMEA());
         if (++n%5==0) {
           lcd.setCursor(12,1);
-          lcd.print(n/n_tot);
+          lcd.print(n*100/n_tot);
           lcd.print('%');
         } 
       } else if (i==0) {
@@ -125,6 +122,8 @@ void save_trace(char * name)
         n_tot = atoi(p);
       }
     } while (i!=2);
+    lcd.setCursor(12,1);
+    lcd.print("100%");
     Serial1.flush();
     f.close();
   }

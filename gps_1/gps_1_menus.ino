@@ -25,7 +25,7 @@ char oui_non() // -1 : non; 0 : time out; 1 : oui
   lcd.setCursor(0,1);
   lcd.print(buffer);
   unsigned long beg = millis(),l;
-  byte b;
+  char b;
   
   noInterrupts();
   last_menu_change = millis();
@@ -39,7 +39,6 @@ char oui_non() // -1 : non; 0 : time out; 1 : oui
     b = button;
     l = last_button_change;
     interrupts();
-    delay(30);
     if (b && (millis()>l+100)) {
       #ifdef DEBUG
       Serial.print("oui-non=");
@@ -51,24 +50,32 @@ char oui_non() // -1 : non; 0 : time out; 1 : oui
     l = last_menu_change;
     b = menu_change;
     interrupts();
-    if (millis()>l+100) {
+    #ifdef DEBUG
+    Serial.print("b=");
+    Serial.print((int)b);
+    Serial.print("  l=");
+    Serial.println(l);
+    #endif
+    if ((millis()>l+100)&&(b!=0)) {
       if (b>0) {
         choice = -1;
         lcd.setCursor(0,1);
-        lcd.print(" ");
+        lcd.print(' ');
         coord = 7;
       }
       else if (b<0) {
         choice = 1;
         coord = 0;
         lcd.setCursor(7,1);
-        lcd.print(" ");
+        lcd.print(' ');
       }
       noInterrupts();
       menu_change = 0;
       interrupts();
+      Serial.print(" choice = ");
+      Serial.println((int)choice);  
       lcd.setCursor(coord,1);
-      lcd.print(">");
+      lcd.print('>');
     }
     delay(30);
   } while (ms_elapsed_from(beg) < 30000);
@@ -124,7 +131,10 @@ void menu_start_path()
   wp_file_n = new_filename(name);
   if (createWPFile(name,wp_file)) {
     next_WP = 0;
-  } else err_msg(msg_err_file);
+  } else {
+    err_msg(msg_err_file);
+    return;
+  }
   if (!GPS.LOCUS_StartLogger())
   {
     err_msg(msg_err_locus);
@@ -146,13 +156,18 @@ void menu_end_path()
     err_msg(msg_locus_not_sted);
     return;
   }
-  err_msg(msg_ask_transfer_SD);
+  err_msg(msg_ask_transfer_SD,false);
   wp_file.close();
+  // Stop logging
+  GPS.sendCommand("$PMTK185,1*23");
+  GPS.waitForSentence("$PMTK001,185");    
+
   char oui = oui_non();
   if (oui == 1) {
     err_msg(msg_transfering_SD);
     char name[12];
     strcpy_P(name, (PGM_P)trace_file_name);
+    build_filename(name, wp_file_n);
     lcd.clear();
     lcd.setCursor(0,0);
     lcd.print(name);
@@ -160,14 +175,13 @@ void menu_end_path()
     Serial.println(name);
     #endif
     save_trace(name);
-    GPS.sendCommand("$PMTK185,1*23");
-    GPS.waitForSentence("$PMTK001,185");    
-    err_msg(msg_erasing_mem, false);
-    GPS.sendCommand("$PMTK184,1*22");
-    GPS.waitForSentence("$PMTK001,184,3");
     // FIXME: Check result
     Serial1.flush();
+      err_msg(msg_erasing_mem, false);
+    // Erase LOCUS mem
+    GPS.sendCommand("$PMTK184,1*22");
+    GPS.waitForSentence("$PMTK001,184,3");
     LOCUS_started = false;
     delay(MENU_DELAY);
-  }  
+  }
 }
