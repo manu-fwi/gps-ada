@@ -89,6 +89,7 @@ void menu_add_wp()
     lcd.setCursor(0,0);
     lcd.print("Adding WP:");
     lcd.print(next_WP);
+    get_rmc();
     addWP(wp_file, next_WP);
     delay(MENU_DELAY);
     in_menu = false;
@@ -130,8 +131,7 @@ void menu_start_path()
   }
   lcd.clear();
   lcd.setCursor(0,0);
-  lcd.print("New path to file:");
-  lcd.setCursor(0,1);
+  lcd.print("File:");
   lcd.print(name);
   delay(MENU_DELAY);
   LOCUS_started = true;

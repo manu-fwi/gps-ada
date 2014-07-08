@@ -57,37 +57,55 @@ void print_date(Print& s)
 
 }
 
+/* Print an unsigned 2 digits number (from 0 to 99 then) making sure it is always
+   2 digits by adding a leading 0 if necessary */
+   
+void print_unsigned_2_dig(Print& s,unsigned int n)
+{
+  if (n<10) s.print('0');
+  s.print(n);
+}
+
 void print_time(Print& s)
 {
-  s.print(GPS.hour);
+  print_unsigned_2_dig(s, GPS.hour);
   s.print(":");
-  if (GPS.minute<10) s.print('0');
-  s.print(GPS.minute);
+  print_unsigned_2_dig(s, GPS.minute);
   s.print(":");
-  if (GPS.seconds<10) s.print('0');  
-  s.print(GPS.seconds);
+  print_unsigned_2_dig(s, GPS.seconds);
 }
 
 boolean createWPFile(const char * name, File& f)
 {
   f = SD.open(name, FILE_WRITE);
   if (f) {
-    f.println("GPS: Waypoints file");
+    f.println("GPS-ADA: Waypoints file");
     f.print("Date: ");
     print_date(f);
     f.print(" <> Time : ");
     print_time(f);
+    f.println();
     return true;
   }
   return false;
 }
 
+/* Make sure a recent NMEA sentence (RMC/GGA) has been parsed
+   as we use the GPS members to populate the waypoint coordinates
+ */
 void addWP(File& f, unsigned int num)
 {
   f.print("Waypoint=");
   f.print(num);
-  f.print(" Serial #=");
-  f.println(GPS.LOCUS_serial);
+  f.print(",Serial#=");
+  f.print(GPS.LOCUS_serial);
+  f.print(",Lat=");
+  f.print(GPS.latitude);
+  f.print(",Long=");
+  f.print(GPS.longitude);
+  f.print(",Time=");
+  print_time(f);
+  f.println();
 }
 
 void save_trace(char * name)
@@ -104,19 +122,16 @@ void save_trace(char * name)
         Serial.println(GPS.lastNMEA());
         #endif
       } while (!strstr(GPS.lastNMEA(),"$PMTKLOX"));
-      #ifdef DEBUG
-      Serial.println(GPS.lastNMEA());
-      #endif
       char * p = strchr(GPS.lastNMEA(),',')+1;
       i = *p - '0';
 
       if (i==1) {
         f.println(GPS.lastNMEA());
-        if (++n%5==0) {
+/*        if (++n%5==0) {
           lcd.setCursor(12,1);
           lcd.print(n*100/n_tot);
           lcd.print('%');
-        } 
+        } */
       } else if (i==0) {
         p = strchr(p,',')+1;
         n_tot = atoi(p);

@@ -36,7 +36,7 @@ PROGMEM const char * menus[]={ menu_0,menu_1,menu_2, menu_3, menu_4, menu_5 };
 prog_char msg_no_fix [] PROGMEM = "No Fix!";
 prog_char msg_locus_not_sted[] PROGMEM = "Trace non act.";
 prog_char msg_already_sted [] PROGMEM = "Déjà démar.";
-prog_char msg_err_file [] PROGMEM = "Erreur fichier";
+prog_char msg_err_file [] PROGMEM = "Erreur SD";
 prog_char msg_err_locus [] PROGMEM = "Erreur GPS log";
 
 prog_char msg_ask_transfer_SD [] PROGMEM = "Transfert trace?";
@@ -48,7 +48,6 @@ PROGMEM prog_uchar enc_states[] = {0,-1,1,0,1,0,0,-1,-1,0,0,1,0,1,-1,0};
 
 char coord_Lat[10];
 char coord_Long[11];
-char dev_mag[]="-----";
 
 Adafruit_GPS GPS(&Serial1);
 
@@ -249,7 +248,6 @@ void aff_coords()
   // Get new coords no more than every 10s
   if ((last_rmc+10000<millis()) || (coord_Long[0]=='\0')) {
     Serial1.flush();
-    Serial.println("get rmc");
     get_rmc();
     last_rmc = millis();
     must_displ_coords = true;
@@ -389,10 +387,10 @@ void loop() {
   }
   
   // Check if it is time to sleep
-  if (!has_to_sleep)
+/*  if (!has_to_sleep)
     has_to_sleep = (ms_elapsed_from(last_menu_change)/1000>sleep_tout)
                  &&(ms_elapsed_from(last_button_change)/1000>sleep_tout);
-/*  if (has_to_sleep) {
+  if (has_to_sleep) {
     lcd.clear();
     lcd.setCursor(0,0);
     lcd.print("Sleeping");

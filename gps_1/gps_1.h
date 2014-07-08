@@ -6,7 +6,7 @@
 
 #define __GPS_1_H
 
-#define DEBUG 1
+//#define DEBUG 1
 
 #define Menu_WP         0
 #define Menu_Time       1
