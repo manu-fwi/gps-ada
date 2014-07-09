@@ -28,4 +28,6 @@
 // Timeout when displaying coords: 1mn
 #define SLEEP_TOUT 60
 
+void err_msg(char * msg,boolean use_delay);
+
 #endif

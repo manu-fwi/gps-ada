@@ -15,12 +15,31 @@
 
 // include the libraries code:
 
-#include <Adafruit_GPS.h>
 #include <avr/sleep.h>
 #include <avr/pgmspace.h>
 #include <LiquidCrystal.h>
 #include <SD.h>
 #include "gps_1.h"
+#include "gps_lib.h"
+
+// GPS_LIB variables
+
+// RX buffer for GPS sentences
+char gps_buf[MAX_LINE_LEN+1];
+
+/* Sentence type (ORed bits)
+   0 : invalid or not parsed
+   1 : RMC, parsed -> time,date,fix
+   2 : GGA, parsed -> time,fix,nb_sats
+   4 : LOCUS, parsed -> all LOCUS fields
+ */
+
+int8_t sentence_type=-1;
+
+/* This struct has all the fields obtained by parsing RMC/GGA sentences.
+   You have to know
+*/
+gps_data_t gps_data;
 
 // Global variables
 
@@ -49,12 +68,10 @@ PROGMEM prog_uchar enc_states[] = {0,-1,1,0,1,0,0,-1,-1,0,0,1,0,1,-1,0};
 char coord_Lat[10];
 char coord_Long[11];
 
-Adafruit_GPS GPS(&Serial1);
-
 // Last menu change: either +1 or -1 or 0 if no change
 volatile char menu_change = 0;
 volatile unsigned long last_menu_change = millis();
-unsigned long last_rmc = 0;
+unsigned long last_gga = 0;
 
 volatile byte button = 0; // current state
 volatile unsigned long last_button_change = millis();
@@ -110,35 +127,31 @@ ISR(PCINT0_vect)
   }
 }
 
-void gps_rmc_enable(boolean enable)
-{
-  if (enable)
-    GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
-  else
-    GPS.sendCommand("$PMTK314,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*28");
-}
-
 void gps_init()
 {
-  GPS.sendCommand("$PMTK000*32");
-  if (!GPS.waitForSentence("$PMTK001,0,3*30")) {
+  Serial1.println("$PMTK000*32");
+  if (!gps_wait_for_sentence("$PMTK001,0,3*30",5)) {
     #ifdef DEBUG
     Serial.println("GPS Init problem!!");
     #endif
   }
 
   // Switch off nmea sentences
-  gps_rmc_enable(false);
+  gps_nmea_enable(0);
   // Set rate, 1Hz
-  GPS.sendCommand("$PMTK220,1000*1F");
+  Serial1.println("$PMTK220,1000*1F");
   delay(100);
   Serial1.flush();
+  // Make sure there is no previous logging
+  gps_LOCUS_stop();
 }
 
 void lcd_enable(boolean enable)
 {
   if (enable) {
+    lcd.display();
   } else {
+    lcd.noDisplay();
   }
 }
 
@@ -153,6 +166,7 @@ void sleepNow ()
   sleeping = true;
   interrupts ();           // interrupts allowed now, next instruction WILL be executed
   sleep_cpu ();            // here the device is put to sleep
+  sleep_disable();
   // Reenable the interrupts for encoder A-B Channels
   PCMSK0 |= bit (PCINT6)| bit(PCINT7);
   lcd_enable(true);
@@ -160,6 +174,7 @@ void sleepNow ()
   lcd.setCursor(0,0);
   lcd.print("Waking up...");
   in_menu = false;
+  must_displ_coords = true;
 }  // end of sleepNow
 
 void setup() {
@@ -177,6 +192,7 @@ void setup() {
   PCIFR  |= bit (PCIF0);   // clear any outstanding interrupts
   PCICR  |= bit (PCIE0);   // enable pin change interrupts
   
+  Serial1.begin(9600);
 #ifdef DEBUG
   Serial.begin(57600);
   while(!Serial);
@@ -195,8 +211,6 @@ void setup() {
     lcd.print("SD not working!!");
   }
   
-  // GPS Setup
-  GPS.begin(9600);
   // Make sure GPS is ready and set up.
   gps_init();
   
@@ -213,45 +227,44 @@ unsigned long ms_elapsed_from(unsigned long time)
   return 0xFFFFFFFF-time+millis();
 }
 
-// Enable RMC, get one valid RMC and then disable RMC
-// The RMC is parsed also.
-void get_rmc()
-{
-  Serial1.flush();
-  gps_rmc_enable(true);
-  do {
-    if (!GPS.waitForSentence("$GPRMC")) {
-      #ifdef DEBUG
-      Serial.println("NO RMC!!!");
-      #endif
-    }
-  } while (!GPS.parse(GPS.lastNMEA()));
-  gps_rmc_enable(false);
-  Serial1.flush();
-}
-
 int get_LOCUS_mem()
 {
   static int mem = -1;
   static unsigned long last_time = 0;
   
   if ((mem==-1) || (millis()>last_time + 5000)) {
-    if (GPS.LOCUS_ReadStatus()) mem = GPS.LOCUS_percent;
+    if (gps_LOCUS_status()) mem = gps_data.LOCUS_percent;
     else mem = -1;
     last_time = millis();
   }
   return mem;
 }
 
+void update_coords()
+{
+  char * p = strchr(gps_buf,',') + 1;
+  p = strchr(p,',')+1;
+  #ifdef DEBUG
+  Serial.print("p=");Serial.println(p);
+  #endif
+  strncpy(coord_Lat,p,9);
+  p += 10;
+  coord_Lat[4] = *p; // replaces the . with N or S
+  p += 2; // skips the first zero for now
+  strncpy(coord_Long,p,10);
+  p += 11;
+  coord_Long[5] = *(p); // replaces the . with W or E
+}
+
 void aff_coords()
 {
   // Get new coords no more than every 10s
-  if ((last_rmc+10000<millis()) || (coord_Long[0]=='\0')) {
+  if ((last_gga+10000<millis()) || (coord_Long[0]=='\0')) {
     Serial1.flush();
-    get_rmc();
-    last_rmc = millis();
+    gps_get_nmea(GPS_GGA);
+    last_gga = millis();
     must_displ_coords = true;
-    if (!GPS.fix) {
+    if (!gps_data.fix) {
       // No fix
       strcpy_P(coord_Lat, (PGM_P)msg_no_fix);
       coord_Long[0]='\0';
@@ -260,21 +273,7 @@ void aff_coords()
       Serial.println(coord_Lat);
       #endif
     }
-    else {
-      char * p = strchr(GPS.lastNMEA(),',') + 1;
-      p = strchr(p,',')+1;
-      p = strchr(p,',')+1;
-      #ifdef DEBUG
-      Serial.print("p=");Serial.println(p);
-      #endif
-      strncpy(coord_Lat,p,9);
-      p += 10;
-      coord_Lat[4] = *p; // replaces the . with N or S
-      p += 2; // skips the first zero for now
-      strncpy(coord_Long,p,10);
-      p += 11;
-      coord_Long[5] = *(p); // replaces the . with W or E
-    }
+    else update_coords();
   }
   if (must_displ_coords) {
     must_displ_coords = false;
@@ -285,10 +284,13 @@ void aff_coords()
     else lcd.print("  ");
     int mem = get_LOCUS_mem();
     if (mem>=0) lcd.print(mem);
-    else lcd.print("---");
+    else lcd.print("--");
     lcd.print("%");
+    lcd.print(gps_data.nb_sats);
     lcd.setCursor(0,1);
     lcd.print(coord_Long);
+    lcd.print(" ");
+    lcd.print(gps_data.altitude/10);
     #ifdef DEBUG
     Serial.print(must_displ_coords);
     Serial.print(" coords=");
@@ -387,7 +389,7 @@ void loop() {
   }
   
   // Check if it is time to sleep
-/*  if (!has_to_sleep)
+  if (!has_to_sleep)
     has_to_sleep = (ms_elapsed_from(last_menu_change)/1000>sleep_tout)
                  &&(ms_elapsed_from(last_button_change)/1000>sleep_tout);
   if (has_to_sleep) {
@@ -395,12 +397,15 @@ void loop() {
     lcd.setCursor(0,0);
     lcd.print("Sleeping");
     sleepNow();
+    #ifdef DEBUG
+    Serial.println("Out of sleep");
+    #endif
     starting = true;
     noInterrupts();
     last_button_change = millis();
     interrupts();
     has_to_sleep = false;
-  }*/
+  }
   delay(30);
 }
 

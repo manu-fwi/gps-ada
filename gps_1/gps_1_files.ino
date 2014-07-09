@@ -49,11 +49,11 @@ void build_filename(char * name, unsigned int num)
 
 void print_date(Print& s)
 {
-  s.print(GPS.day);
+  print_unsigned_2_dig(s,gps_data.day);
   s.print("/");
-  s.print(GPS.month);
+  print_unsigned_2_dig(s,gps_data.month);
   s.print("/");
-  s.print(GPS.year);
+  print_unsigned_2_dig(s,gps_data.year%100);
 
 }
 
@@ -68,11 +68,11 @@ void print_unsigned_2_dig(Print& s,unsigned int n)
 
 void print_time(Print& s)
 {
-  print_unsigned_2_dig(s, GPS.hour);
+  print_unsigned_2_dig(s, gps_data.hours);
   s.print(":");
-  print_unsigned_2_dig(s, GPS.minute);
+  print_unsigned_2_dig(s, gps_data.minutes);
   s.print(":");
-  print_unsigned_2_dig(s, GPS.seconds);
+  print_unsigned_2_dig(s, gps_data.sec);
 }
 
 boolean createWPFile(const char * name, File& f)
@@ -91,18 +91,28 @@ boolean createWPFile(const char * name, File& f)
 }
 
 /* Make sure a recent NMEA sentence (RMC/GGA) has been parsed
-   as we use the GPS members to populate the waypoint coordinates
+   as we use the gps_data members to populate the waypoint coordinates
  */
 void addWP(File& f, unsigned int num)
 {
   f.print("Waypoint=");
   f.print(num);
-  f.print(",Serial#=");
-  f.print(GPS.LOCUS_serial);
+  f.print(",LOCUS#=");
+  f.print(gps_data.LOCUS_log_nb);
   f.print(",Lat=");
-  f.print(GPS.latitude);
+  if (gps_data.fix) {
+    update_coords();
+    f.print(coord_Lat);
+  } else f.print('*');
   f.print(",Long=");
-  f.print(GPS.longitude);
+  if (gps_data.fix) f.print(coord_Long);
+  else f.print('*');
+  f.print(",altitude=");
+  if (gps_data.fix) {
+    f.print(gps_data.altitude/10);
+    f.print('.');
+    f.print(gps_data.altitude % 10);
+  } else f.print('*');
   f.print(",Time=");
   print_time(f);
   f.println();
@@ -114,24 +124,22 @@ void save_trace(char * name)
   unsigned int n_tot, n = 0;
   File f = SD.open(name, FILE_WRITE);
   if (f) {
-    GPS.sendCommand("$PMTK622,1*29");
+    Serial1.println("$PMTK622,1*29");
     do {
-      do {
-        while (!GPS.newNMEAreceived()) GPS.read();
-        #ifdef DEBUG
-        Serial.println(GPS.lastNMEA());
-        #endif
-      } while (!strstr(GPS.lastNMEA(),"$PMTKLOX"));
-      char * p = strchr(GPS.lastNMEA(),',')+1;
+      if (!gps_wait_for_sentence("$PMTKLOX",5)) {
+        err_msg(msg_err_locus,true);
+        return;
+      }
+      char * p = strchr(gps_buf,',')+1;
       i = *p - '0';
 
       if (i==1) {
-        f.println(GPS.lastNMEA());
-/*        if (++n%5==0) {
+        f.println(gps_buf);
+        if (++n%5==0) {
           lcd.setCursor(12,1);
           lcd.print(n*100/n_tot);
           lcd.print('%');
-        } */
+        }
       } else if (i==0) {
         p = strchr(p,',')+1;
         n_tot = atoi(p);

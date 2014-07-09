@@ -70,7 +70,7 @@ char oui_non() // -1 : non; 0 : time out; 1 : oui
   return 0;
 }
 
-void err_msg(char * msg, boolean use_delay = true)
+void err_msg(char * msg, boolean use_delay)
 {
    char buffer[17];
    
@@ -89,17 +89,17 @@ void menu_add_wp()
     lcd.setCursor(0,0);
     lcd.print("Adding WP:");
     lcd.print(next_WP);
-    get_rmc();
+    gps_get_nmea(GPS_GGA);
     addWP(wp_file, next_WP);
     delay(MENU_DELAY);
     in_menu = false;
     next_WP ++;
-  } else err_msg(msg_locus_not_sted);
+  } else err_msg(msg_locus_not_sted,true);
 }
 
 void menu_time()
 {
-  get_rmc();
+  gps_get_nmea(GPS_RMC);
   lcd.setCursor(6,0);
   print_date(lcd);
   lcd.setCursor(0,1);
@@ -112,26 +112,28 @@ void menu_start_path()
 {
   in_menu = false;
   if (LOCUS_started) {
-    err_msg(msg_already_sted);
+    err_msg(msg_already_sted,true);
     return;
   }
   char name[12];
   strcpy_P(name, (PGM_P)wp_file_name);
   wp_file_n = new_filename(name);
+  gps_get_nmea(GPS_RMC);
   if (createWPFile(name,wp_file)) {
     next_WP = 0;
   } else {
-    err_msg(msg_err_file);
+    err_msg(msg_err_file,true);
     return;
   }
-  if (!GPS.LOCUS_StartLogger())
+  if (!gps_LOCUS_start())
   {
-    err_msg(msg_err_locus);
+    err_msg(msg_err_locus,true);
     return;
   }
   lcd.clear();
   lcd.setCursor(0,0);
   lcd.print("File:");
+  lcd.setCursor(0,1);
   lcd.print(name);
   delay(MENU_DELAY);
   LOCUS_started = true;
@@ -141,18 +143,17 @@ void menu_end_path()
 {
   if (!LOCUS_started)
   {
-    err_msg(msg_locus_not_sted);
+    err_msg(msg_locus_not_sted,true);
     return;
   }
   err_msg(msg_ask_transfer_SD,false);
   wp_file.close();
   // Stop logging
-  GPS.sendCommand("$PMTK185,1*23");
-  GPS.waitForSentence("$PMTK001,185");    
+  gps_LOCUS_stop();
 
   char oui = oui_non();
   if (oui == 1) {
-    err_msg(msg_transfering_SD);
+    err_msg(msg_transfering_SD,true);
     char name[12];
     strcpy_P(name, (PGM_P)trace_file_name);
     build_filename(name, wp_file_n);
@@ -165,10 +166,9 @@ void menu_end_path()
     save_trace(name);
     // FIXME: Check result
     Serial1.flush();
-      err_msg(msg_erasing_mem, false);
+    err_msg(msg_erasing_mem, false);
     // Erase LOCUS mem
-    GPS.sendCommand("$PMTK184,1*22");
-    GPS.waitForSentence("$PMTK001,184,3");
+    gps_LOCUS_erase_mem();
     LOCUS_started = false;
     delay(MENU_DELAY);
   }
