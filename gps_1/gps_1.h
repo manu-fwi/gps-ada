@@ -1,4 +1,4 @@
-
+// Licence and copyright, see gps_1.ino file
    // DEFINES
 
 

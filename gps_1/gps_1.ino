@@ -1,17 +1,23 @@
-
-/* 
-  The circuit:
- * LCD RS pin to digital pin 13
- * LCD Enable pin to digital pin 12
- * LCD D4 pin to digital pin 8
- * LCD D5 pin to digital pin 7
- * LCD D6 pin to digital pin 6
- * LCD D7 pin to digital pin 5
- * LCD R/W pin to ground
- * 10K resistor:
- * ends to +5V and ground
- * wiper to LCD VO pin (pin 3)
-*/
+/* GPS_ADA: implements GPS trace files with waypoints.
+ * Copyright (c) 2014 by Emmanuel ALLAUD <eallaud@gmail.com>
+ * Based upon previous works: most notably the Adafruit Ultimate GPS library
+ * and the various examples for several arduino libraries
+ *
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation; either version 2 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program; if not, write to the Free Software
+ *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ *
+ */
 
 // include the libraries code:
 

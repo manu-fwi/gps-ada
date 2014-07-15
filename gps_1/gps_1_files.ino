@@ -1,3 +1,5 @@
+// Licence and copyright, see gps_1.ino file
+
 #include <SD.h>
 
 prog_char wp_file_name [] PROGMEM = "WYPNT000.TXT";

@@ -1,3 +1,5 @@
+// Licence and copyright, see gps_1.ino file
+
 #include "gps_1.h"
 
 void wait_button_released()

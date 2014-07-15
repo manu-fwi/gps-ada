@@ -1,3 +1,5 @@
+// Licence and copyright, see gps_1.ino file
+
 #ifndef __GPS_LIB_H
 #define __GPS_LIB_H
 

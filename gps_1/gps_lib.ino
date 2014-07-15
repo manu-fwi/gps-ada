@@ -1,3 +1,5 @@
+// Licence and copyright, see gps_1.ino file
+
 #include "gps_lib.h"
 
 #include <avr/pgmspace.h>
