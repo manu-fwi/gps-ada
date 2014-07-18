@@ -22,11 +22,13 @@
 #define DELAY_ERR_MSG 2000
 
 // Timeout when in menu: 2 mn
-
 #define SLEEP_MENU_TOUT 120
 
 // Timeout when displaying coords: 1mn
 #define SLEEP_TOUT 60
+
+// Power saving timeout in ms
+#define PWR_SAVE_TOUT 5000
 
 void err_msg(char * msg,boolean use_delay);
 

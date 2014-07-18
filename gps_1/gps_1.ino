@@ -2,6 +2,8 @@
  * Copyright (c) 2014 by Emmanuel ALLAUD <eallaud@gmail.com>
  * Based upon previous works: most notably the Adafruit Ultimate GPS library
  * and the various examples for several arduino libraries
+ * Also used alot of the examples of Nick Gammon's excellent website
+ * about power management/interrupts on avr
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -22,6 +24,7 @@
 // include the libraries code:
 
 #include <avr/sleep.h>
+#include <avr/wdt.h>
 #include <avr/pgmspace.h>
 #include <LiquidCrystal.h>
 #include <SD.h>
@@ -99,6 +102,11 @@ unsigned int sleep_tout;
 // initialize the library with the numbers of the interface pins
 LiquidCrystal lcd(13, 12, 8, 7, 6, 5);                  
 
+// Wathdog interrupt to do power saving delays
+ISR(WDT_vect)
+{
+  // Nothing to do here
+}
 
 //interrupt service routine in sleep mode
 // Also used to detect rotary button press/release
@@ -106,7 +114,6 @@ ISR(PCINT0_vect)
 {
   // Check if we were sleeping
   if (sleeping) {
-    sleep_disable ();         // first thing after waking from sleep
     sleeping = false;
   }
   // Else see which pins changed
@@ -161,30 +168,64 @@ void lcd_enable(boolean enable)
   }
 }
 
-void sleepNow ()
+/* Complete_sleep: true if we want to power down everything
+   it will power the lcd down and leave only the interrupt for the
+   button to wake the mcu up.
+   If False: just a "regular power down" to save power when the
+   mcu is waiting for user input. It also sets up a watchdog with a
+   POWER_SAVE_DELAY ms delay to make sure it will wake up to check
+   everything is fine and update the display if needed.
+ */
+void sleepNow (boolean complete_sleep)
 {
-  lcd_enable(false);
+  if (complete_sleep) {
+    // Turn the lcd down
+    lcd_enable(false);
+  }
+  
   set_sleep_mode (SLEEP_MODE_PWR_DOWN);  
-  noInterrupts ();          // make sure we don't get interrupted before we sleep
-  // Disable the interrupts for encoder A-B Channels
-  PCMSK0 &= ~(bit (PCINT6)|bit(PCINT7));
+// make sure we don't get interrupted before we sleep
+  noInterrupts (); 
+  /* Disable the interrupts for encoder A-B Channels if its a
+     complete power down.
+   */
+  if (complete_sleep) PCMSK0 &= ~(bit (PCINT6)|bit(PCINT7));
+  else {
+    // Enable watchdog timer with correct timeout
+    MCUSR = 0;                          // reset various flags
+    WDTCSR |= 0b00011000;               // see docs, set WDCE, WDE
+    WDTCSR =  0b01100001;    // set WDIE, and appropriate delay (8s)
+    wdt_reset();
+  }
   sleep_enable ();          // enables the sleep bit in the mcucr register
-  sleeping = true;
+  sleeping = complete_sleep;
   interrupts ();           // interrupts allowed now, next instruction WILL be executed
   sleep_cpu ();            // here the device is put to sleep
   sleep_disable();
+  wdt_disable();
+  last_button_change = millis();
   // Reenable the interrupts for encoder A-B Channels
-  PCMSK0 |= bit (PCINT6)| bit(PCINT7);
-  lcd_enable(true);
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("Waking up...");
-  in_menu = false;
-  must_displ_coords = true;
+  if (complete_sleep) {
+    PCMSK0 |= bit (PCINT6)| bit(PCINT7);
+    lcd_enable(true);
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("Waking up...");
+    in_menu = false;
+    must_displ_coords = true;
+  }
+  #ifdef DEBUG
+  Serial.begin(57600);
+  #endif
 }  // end of sleepNow
 
 void setup() {
- 
+  // Disable AD
+  ADCSRA &= ~ bit(ADEN);
+  
+  // Disable Watchdog
+  wdt_disable();
+  
   //Setup interrupts
   // rotary encoder (button and A-B channels)
   
@@ -192,6 +233,7 @@ void setup() {
     pinMode(i, INPUT);
     digitalWrite (i, HIGH);  // enable pull-up for rotary encoder
   }
+  // Disable pull-up for button
   digitalWrite(9,LOW);
   // pin change interrupt
   PCMSK0 |= bit (PCINT5)|bit(PCINT6)|bit(PCINT7);  // want pins 9,10,11
@@ -211,6 +253,8 @@ void setup() {
   // Print a message to the LCD.
   lcd.print("Start up...");
   
+  pinMode(A0,OUTPUT);
+  digitalWrite(A0,LOW);
   pinMode(A1,OUTPUT);
   if (!SD.begin(A1)) {
     lcd.setCursor(0,1);
@@ -394,7 +438,7 @@ void loop() {
     }
   }
   
-  // Check if it is time to sleep
+  // Check if it is time to do a complete sleep
   if (!has_to_sleep)
     has_to_sleep = (ms_elapsed_from(last_menu_change)/1000>sleep_tout)
                  &&(ms_elapsed_from(last_button_change)/1000>sleep_tout);
@@ -402,16 +446,19 @@ void loop() {
     lcd.clear();
     lcd.setCursor(0,0);
     lcd.print("Sleeping");
-    sleepNow();
+    sleepNow(true);
     #ifdef DEBUG
     Serial.println("Out of sleep");
     #endif
     starting = true;
-    noInterrupts();
-    last_button_change = millis();
-    interrupts();
     has_to_sleep = false;
+  } 
+  else if ((ms_elapsed_from(last_menu_change)>PWR_SAVE_TOUT)&&
+           (ms_elapsed_from(last_button_change)>PWR_SAVE_TOUT))
+  {
+    // Time for a power saving sleep
+    sleepNow(false);
   }
-  delay(30);
+  delay(20);
 }
 
